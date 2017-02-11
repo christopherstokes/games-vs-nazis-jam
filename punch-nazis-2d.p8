@@ -52,7 +52,7 @@ function _draw()
 end
 
 function update_menu()
-	if (btn(4)) then start_game() end
+	if (btn(4)) start_game()
 end
 
 function draw_menu()
@@ -87,6 +87,8 @@ function start_game()
 
 	punches = {}
 
+	hate = {}
+
 	smoke = {}
 
 	-- setup player
@@ -108,7 +110,7 @@ function start_game()
 			speed = 10,
 			flipx = false,
 			flipy = false,
-			loop = true
+			loop = truef
 		},
 		walk_down = {
 			start =	18,
@@ -163,15 +165,19 @@ function start_game()
 	player.lives = 4
 	player.pdir = "right"
 	player.box = {x1=1,y1=1,x2=4,y2=7}
+	player.speed = 2
+	player.imm = true
+	timers.player_imm = 0
 
 	enemies = {}
 
-	for i=1,10 do
+	for i=1,5 do
 		local rt = flr(rnd(2) + 1)
 		local e = create_actor(flr(rnd(112))+7,flr(rnd(112))+7)
 		if rt == 1 then
 			e.box = {x1=1,y1=1,x2=4,y2=7}
 			e.sp = 64
+			e.pdir = "right"
 			e.anim = {
 	 			walk = {
 	 				start = 64,
@@ -194,11 +200,34 @@ function start_game()
 	 				step = 0,
 	 				speed = 3,
 	 				loop = false
-	 			}
+	 			},
+			 	hate = {
+					start = 86,
+					frames = 2,
+					step = 0,
+					speed = 25,
+					loop = true,
+					flipx = false
+				},
+				hate_u = {
+					start = 90,
+					frames = 2,
+					step = 0,
+					speed = 25,
+					loop = true
+				},
+				hate_d = {
+					start = 88,
+					frames = 2,
+					step = 0,
+					speed = 25,
+					loop = true
+				}
 			}
 		else
 			e.box = {x1=1,y1=1,x2=4,y2=7}
 			e.sp = 70
+			e.pdir = "right"
 			e.anim = {
 				walk = {
 					start = 70,
@@ -221,6 +250,28 @@ function start_game()
 					step = 0,
 					speed = 3,
 					loop = false
+				},
+				hate = {
+					start = 76,
+					frames = 2,
+					step = 0,
+					speed = 25,
+					loop = true,
+					flipx = false
+				},
+				hate_u = {
+					start = 92,
+					frames = 2,
+					step = 0,
+					speed = 25,
+					loop = true
+				},
+				hate_d = {
+					start = 78,
+					frames = 2,
+					step = 0,
+					speed = 25,
+					loop = true
 				}
 			}
 		end
@@ -231,73 +282,134 @@ function start_game()
 	screen.draw = draw_game
 end
 
-function punch(x,y,pdir)
-	local p = create_actor(x,y,11)
-	if (pdir == "up" or pdir == "down") p.sp = 24
-	p.t = 0
-	p.spd = 4
-	p.pdir = pdir
+function projectile(x,y,pdir,type)
 
-	if pdir == "right" then
-		p.anim = {
-			 punch = {
-				start = 11,
- 				frames = 5,
- 				step = 0,
- 				speed = 25,
- 				loop = false
-			}
-		}
-	end
+	if type == "hate" then
+		local h = create_actor(x,y,163)
+		if (pdir == "up" or pdir == "down") h.sp = 168
+		h.t = 0
+		h.spd = 2
+		h.pdir = pdir
 
-	if pdir == "left" then
-		p.anim = {
-			 punch = {
-	 			start = 11,
-	  		frames = 5,
-	  		step = 0,
-	  		speed = 25,
-	  		loop = false,
-	  		flipx = true
-	 		}
-		}
-	end
-
-	if pdir == "up" then
-		p.anim = {
-			punch = {
-				start = 24,
+		if pdir == "right" then
+			h.anim = {
+				start = 163,
 				frames = 5,
 				step = 0,
 				speed = 25,
 				loop = false
 			}
-		}
-	end
+		end
 
-	if pdir == "down" then
-		p.anim = {
-			punch = {
-				start = 24,
+		if pdir == "left" then
+			h.anim = {
+				start = 163,
 				frames = 5,
+				step = 0,
+				speed = 25,
+				loop = false,
+				flipx = true
+			}
+		end
+
+		if pdir == "up" then
+			h.anim = {
+				start = 168,
+				frames = 4,
+				step = 0,
+				speed = 25,
+				loop = false
+			}
+		end
+
+		if pdir == "down" then
+			h.anim = {
+				start = 168,
+				frames = 4,
 				step = 0,
 				speed = 25,
 				loop = false,
 				flipy = true
 			}
-		}
+		end
+
+		if h.pdir == "left" or h.pdir == "right" then
+			h.box = {x1=3,y1=6,x2=6,y2=6}
+		else
+			h.box = {x1=0,y1=0,x2=3,y2=3}
+		end
+		add(hate,h)
 	end
 
-	if p.pdir == "left" or p.pdir == "right" then
-		p.box = {x1=3,y1=6,x2=6,y2=6}
-	else
-		p.box = {x1=0,y1=0,x2=3,y2=3}
+	if type == "punch" then
+		local p = create_actor(x,y,11)
+		if (pdir == "up" or pdir == "down") p.sp = 24
+		p.t = 0
+		p.spd = 4
+		p.pdir = pdir
+
+		if pdir == "right" then
+			p.anim = {
+				 punch = {
+					start = 11,
+	 				frames = 5,
+	 				step = 0,
+	 				speed = 25,
+	 				loop = false
+				}
+			}
+		end
+
+		if pdir == "left" then
+			p.anim = {
+				 punch = {
+		 			start = 11,
+		  		frames = 5,
+		  		step = 0,
+		  		speed = 25,
+		  		loop = false,
+		  		flipx = true
+		 		}
+			}
+		end
+
+		if pdir == "up" then
+			p.anim = {
+				punch = {
+					start = 24,
+					frames = 5,
+					step = 0,
+					speed = 25,
+					loop = false
+				}
+			}
+		end
+
+		if pdir == "down" then
+			p.anim = {
+				punch = {
+					start = 24,
+					frames = 5,
+					step = 0,
+					speed = 25,
+					loop = false,
+					flipy = true
+				}
+			}
+		end
+
+		if p.pdir == "left" or p.pdir == "right" then
+			p.box = {x1=3,y1=6,x2=6,y2=6}
+		else
+			p.box = {x1=0,y1=0,x2=3,y2=3}
+		end
+		add(punches,p)
 	end
 
-	add(punches,p)
+
 end
 
-function create_actor(x,y,sp,anim,spwid,sphei)
+function create_actor(x,y,sp,anim,spd,spwid,sphei)
 	local a = {}
 	a.x = x
 	a.y = y
@@ -310,6 +422,7 @@ function create_actor(x,y,sp,anim,spwid,sphei)
 	a.t = 0
 	a.anim = anim or {}
 	a.imm = false
+	a.speed = spd or 1
 
 	add(actors, a)
 	return a
@@ -336,6 +449,7 @@ function update_game()
 	t += 1
 	update_player()
 	update_punches()
+	update_hate()
 	update_enemies()
 	update_smoke()
 end
@@ -349,43 +463,52 @@ function update_player()
 		timers.player_imm +=1
 	end
 
+	for h in all(hate) do
+		if coll(player,h) and player.imm ~= true then
+			player.lives -=1
+			if (player.lives <= 0) game_over()
+			player.imm = true
+			timers.player_imm = 0
+		end
+	end
+
 	if (btn(0)) then
 		player.pdir = "left"
 		if (btn(5)) then
 			if (player.anim.roll_lr.flipx == false) player.anim.roll_lr.flipx = true
-			anim(player, player.anim.roll_lr,-3,0)
+			anim(player, player.anim.roll_lr,-(player.speed+1),0)
 		else
 			player.spd = 4
 			if (player.anim.walk_side.flipx == false) player.anim.walk_side.flipx = true
-			anim(player, player.anim.walk_side,-2,0)
+			anim(player, player.anim.walk_side,-(player.speed),0)
 		end
 	end
 	if (btn(1)) then
 		player.pdir = "right"
 		if (btn(5)) then
 			if (player.anim.roll_lr.flipx) player.anim.roll_lr.flipx = false
-			anim(player,player.anim.roll_lr,3,0)
+			anim(player,player.anim.roll_lr,(player.speed+1),0)
 		else
 			if (player.anim.walk_side.flipx) player.anim.walk_side.flipx = false
-			anim(player,player.anim.walk_side,2,0)
+			anim(player,player.anim.walk_side,(player.speed),0)
 		end
 	end
 	if (btn(2)) then
 		player.pdir = "up"
 		if (btn(5)) then
 			if (player.anim.roll_ud.flipy) player.anim.roll_ud.flipy = false
-			anim(player,player.anim.roll_ud,0,-3)
+			anim(player,player.anim.roll_ud,0,-(player.speed+1))
 		else
-			anim(player,player.anim.walk_up,0,-2)
+			anim(player,player.anim.walk_up,0,-(player.speed))
 		end
 	end
 	if (btn(3)) then
 		player.pdir = "down"
 		if (btn(5)) then
 			if (player.anim.roll_ud.flipy == false) player.anim.roll_ud.flipy = true
-			anim(player,player.anim.roll_ud,0,3)
+			anim(player,player.anim.roll_ud,0,(player.speed+1))
 		else
-			anim(player,player.anim.walk_down,0,2)
+			anim(player,player.anim.walk_down,0,(player.speed))
 		end
 	end
 
@@ -410,7 +533,7 @@ function update_player()
 		else dy = 0
 		end
 
-		punch(player.x+dx,player.y+dy,player.pdir)
+		projectile(player.x+dx,player.y+dy,player.pdir,'punch')
 		shake.curr = true
 	end
 
@@ -427,36 +550,37 @@ function update_enemies()
 			player.imm = true
 			timers.player_imm = 0
 		end
-		if dst(e, player) < 50 and not e.dead then
-			local target_vec = move_to_target(e,e.x,e.y,player.x,player.y)
-			local move_offx = 0
-			local move_offy = 0
+		if dst(e, player) < 75 and not e.dead then
+			-- so damn hacky
 
-			if (target_vec.y > e.y) then move_offy = 1
-			else move_offy = -1
+			if (player.y < e.y) anim(e,e.anim.walk_u,0,-0.25)
+			if (player.y > e.y) anim(e,e.anim.walk,0,0.25)
+			if (player.x < e.x) anim(e,e.anim.walk,-0.25)
+			if (player.x > e.x) anim(e,e.anim.walk,0.25)
+
+			if (t%8 < 4) then
+				if player.x == e.x then
+					if player.y > e.y then
+						anim(e,e.anim.hate_d,0,0)
+						projectile(e.x,e.y+7,'down','hate')
+					else
+						anim(e,e.anim.hate_u,0,0)
+						projectile(e.x,e.y-7,'up','hate')
+					end
+				end
+
+				if player.y == e.y then
+					if player.x > e.x then
+						if (e.anim.hate.flipx == true) e.anim.hate.flipx = false
+						anim(e,e.anim.hate,0,0)
+						projectile(e.x+7,e.y,'right','hate')
+					else
+						if (e.anim.hate.flipx) e.anim.hate.flipx = true
+						anim(e,e.anim.hate,0,0)
+						projectile(e.x-7,e.y,'left','hate')
+					end
+				end
 			end
-
-			if (target_vec.x > e.x) then move_offx = 1
-			else move_offx = -1
-			end
-
-			print("offx: "..move_offx.." offy: "..move_offy,0,0,8)
-			-- if target_vec.y < e.y then
-			-- 	anim(e,e.anim.walk_u,offx,offy)
-			-- else
-			-- 	anim(e,e.anim.walk,offx,offy)
-			-- end
-
-			anim(e,e.anim.walk,offx,offy)
-			-- if player.y < e.y then
-			-- 	anim(e,e.anim.walk_u,0,-1)
-			-- elseif player.y > e.y then
-			-- 	anim(e,e.anim.walk,0,1)
-			-- elseif player.x < e.x then
-			-- 	anim(e,e.anim.walk,-1)
-			-- elseif player.x > e.x then
-			-- 	anim(e,e.anim.walk,1)
-			-- end
 		end
 		for p in all(punches) do
 			if coll(p,e) then
@@ -468,6 +592,20 @@ function update_enemies()
 				end
 				del(punches,p)
 				del(actors,p)
+			end
+		end
+		-- check for collision with other enemies and change direction if so
+		for en in all(enemies) do
+			if coll(en,e) and e~=en and not e.dead and not en.dead then
+				if e.x < en.x then
+					en.x += 3
+					e.x -= 3
+				end
+
+				if e.y < en.y then
+					en.y += 3
+					e.x -= 3
+				end
 			end
 		end
 		if e.dead then
@@ -510,6 +648,26 @@ function update_punches()
 		end
 
 		make_smoke(p.x + p.box.x1,p.y + p.box.y1 - 1,flr(rnd(2)),7)
+	end
+end
+
+function update_hate()
+	for h in all(hate) do
+		if h.pdir == "right" then
+			anim(h, h.anim,h.spd)
+		elseif h.pdir == "left" then
+			anim(h, h.anim,-h.spd)
+		elseif h.pdir == "up" then
+			anim(h, h.anim,0,-h.spd)
+		elseif h.pdir == "down" then
+			anim(h, h.anim,0,h.spd)
+		end
+		if h.x > 116 or h.x < 4 or h.y > 116 or h.y < 4 then
+			del(hate, h)
+			del(actors, h)
+		end
+
+		make_smoke(h.x + h.box.x1,h.y + h.box.y1 - 1,flr(rnd(2)),10)
 	end
 end
 
