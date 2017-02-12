@@ -53,6 +53,7 @@ end
 
 function update_menu()
 	if (btn(4)) start_game()
+	if (btn(5)) show_instructions()
 end
 
 function draw_menu()
@@ -67,17 +68,38 @@ function draw_menu()
 	rectfill(0,95,127,105,8)
 
 	print("antifa punch cannon",28,98,7)
-	print("press z to start",34,113)
-
-	print("mem: "..stat(0).." cpu: "..
-							stat(1), 0,0,8)
+	print("press z to start",34,113,8)
+	print("press x for instructions",17,119,7)
 
 end
 
+function show_instructions()
+	screen.update = update_instructions
+	screen.draw = draw_instructions
+end
+
+function update_instructions()
+	if (btnp(5) or btnp(4)) then
+		start_game()
+	end
+end
+
+function draw_instructions()
+	cls()
+	print("press z to fire punch cannon",0,40,7)
+	print("press x to roll",0,48,7)
+	print("punch all nazis or save the",0,64,7)
+	print("hostages to move to the ",0,72,7)
+	print("next level",0,80,7)
+	print("press z or x to continue",0,96,7)
+end
+
 function start_game()
-	current_level = generate_level()
+	-- current_level = generate_level()
 
 	t = 0
+
+	score = 0
 
 	shake = {t=0}
 
@@ -170,8 +192,66 @@ function start_game()
 	timers.player_imm = 0
 
 	enemies = {}
+	hostages = {}
+	num_enemies = 5
+	num_hostages = 2
 
-	for i=1,5 do
+	new_level()
+
+	screen.update = update_game
+	screen.draw = draw_game
+end
+
+function new_level()
+	current_level = generate_level()
+
+
+	player.imm = true
+	timers.player_imm = 0
+	for i=1,num_hostages do
+		local rt = flr(rnd(2) + 1)
+		local hos = create_actor(flr(rnd(112))+7,flr(rnd(112))+7)
+		hos.box = {x1=1,y1=1,x2=4,y2=7}
+		if rt == 1 then
+			hos.sp = 52
+			hos.anim = {
+				idle = {
+					start = 52,
+	 				frames = 2,
+	 				step = 0,
+	 				speed = 10,
+	 				loop = true
+				},
+				free = {
+					start = 50,
+	 				frames = 2,
+	 				step = 0,
+	 				speed = 10,
+	 				loop = true
+				}
+			}
+		else
+			hos.sp = 56
+			hos.anim = {
+				idle = {
+					start = 56,
+	 				frames = 2,
+	 				step = 0,
+	 				speed = 10,
+	 				loop = true
+				},
+				free = {
+					start = 54,
+	 				frames = 2,
+	 				step = 0,
+	 				speed = 10,
+	 				loop = true
+				}
+			}
+		end
+		add(hostages, hos)
+	end
+	for i=1,num_enemies do
 		local rt = flr(rnd(2) + 1)
 		local e = create_actor(flr(rnd(112))+7,flr(rnd(112))+7)
 		if rt == 1 then
@@ -277,9 +357,8 @@ function start_game()
 		end
 		add(enemies, e)
 	end
-
-	screen.update = update_game
-	screen.draw = draw_game
+	num_hostages += 1
+	num_enemies += 3
 end
 
 function projectile(x,y,pdir,type)
@@ -445,11 +524,43 @@ function generate_level()
 	return level
 end
 
+function start_new_level()
+	timers.new_level = 0
+	screen.update = update_new_level
+	screen.draw = draw_new_level
+end
+
+function update_new_level()
+	timers.new_level += 1
+	if timers.new_level > 128 then
+		player.x = 64
+		player.y = 64
+		screen.update = update_game
+		screen.draw = draw_game
+		new_level()
+	end
+end
+
+function draw_new_level()
+	rectfill((player.x-70),
+						(player.y-64)+(timers.new_level - 1),
+						(player.x+70),
+						(player.y-64)+(timers.new_level),
+						flr(rnd(16)))
+	if timers.new_level > 128 then
+		cls()
+	end
+end
+
 function update_game()
 	t += 1
+	if (#enemies == 0) or (#hostages == 0) then
+		start_new_level()
+	end
 	update_player()
 	update_punches()
 	update_hate()
+	update_hostages()
 	update_enemies()
 	update_smoke()
 end
@@ -466,7 +577,7 @@ function update_player()
 	for h in all(hate) do
 		if coll(player,h) and player.imm ~= true then
 			player.lives -=1
-			if (player.lives <= 0) game_over()
+			shake.curr = true
 			player.imm = true
 			timers.player_imm = 0
 		end
@@ -532,7 +643,6 @@ function update_player()
 			anim(player,player.anim.punch_d,0,0)
 		else dy = 0
 		end
-
 		projectile(player.x+dx,player.y+dy,player.pdir,'punch')
 		shake.curr = true
 	end
@@ -543,12 +653,36 @@ function update_player()
 	if (player.y>112) player.y=112
 end
 
+function update_hostages()
+	for hos in all(hostages) do
+		if hos.free then
+			anim(hos,hos.anim.free,0,0)
+			if t - hos.freet > 15 then
+				make_smoke(hos.x + hos.box.x1,hos.y + hos.box.y1 - 1,flr(rnd(3)),7)
+				del(hostages,hos)
+				del(actors,hos)
+			end
+		end
+
+		if coll(hos,player) and not hos.free then
+			score += 30
+			hos.free = true
+			hos.freet = t
+		else
+			anim(hos,hos.anim.idle,0,0)
+		end
+
+
+	end
+end
+
 function update_enemies()
 	for e in all(enemies) do
 		if coll(e,player) and not e.dead and not player.imm then
 			player.lives -= 1
 			player.imm = true
 			timers.player_imm = 0
+			shake.curr = true
 		end
 		if dst(e, player) < 75 and not e.dead then
 			-- so damn hacky
@@ -589,6 +723,7 @@ function update_enemies()
 					e.dead = true
 					e.deadt = t
 					shake.curr = true
+					score += 15
 				end
 				del(punches,p)
 				del(actors,p)
@@ -854,6 +989,9 @@ function draw_game()
 		screen_shake()
 	end
 
+	-- draw score
+	print("score: "..score,player.x-64,player.y-64,7)
+
 	-- draw lives
 	draw_lives()
 
@@ -871,9 +1009,11 @@ function update_game_over()
 end
 
 function draw_game_over()
-	rectfill(0+player.x-64,28+player.y-64,127+player.x-64,56+player.y-64,8)
-	print("game over",48+player.x - 64,36+player.y-64,7)
-	print("press z to restart",32+player.x-64,45+player.y-64,7)
+	draw_lives()
+	rectfill(player.x-64,28+player.y-70,player.x+70,56+player.y-64,8)
+	print("game over",48+player.x - 64,30+player.y-64,7)
+	print("final score: "..score,36+player.x - 64,38+player.y-64,7)
+	print("press z to restart",30+player.x-64,45+player.y-64,7)
 end
 __gfx__
 00000000000000000000000000550000000000000000000000005500000000000000000000550000000000000000000000000000000000000000000000000000
@@ -900,14 +1040,14 @@ __gfx__
 00000000000000000555540005555000055554000555550005557500055555000575450005555500055555000574750005555500000000000000000000000000
 00000000000000000545500005555400055550000545550000555000057475000055500005555500007470000555550000555000000000000000000000000000
 00000000000000000500500005405000055050000055500000000000005550000000000000555000000000000055500000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000055555500000000005555550000000000222222000000000022222200000000000000000000000000000000000000000000000000
+0000000000000000555555005544450055555500554445002222220022f222002222220022f22200000000000000000000000000000000000000000000000000
+00000000000000005544450054747000554445005474700022f222002f7f720022f222002f7f7200000000000000000000000000000000000000000000000000
+0000000000000000547470000444400054747000099990002f7f72002ffff2002f7f720029999200000000000000000000000000000000000000000000000000
+0000000000000000044440000949940009999000099990002ffff20029f99f002999920029999200000000000000000000000000000000000000000000000000
+0000000000000000094994000dddd000099990000999900029f99f000dddd0002999920009999000000000000000000000000000000000000000000000000000
+00000000000000000dddd0000d00d00009999000099990000dddd0000d00d0000999900009999000000000000000000000000000000000000000000000000000
+00000000000000000d00d0000000000009999000000000000d00d000000000000999900000000000000000000000000000000000000000000000000000000000
 0000a00000aaa0000000a00000a0000000aaa00000a0000000000000055850000000000000000000000000000000000000000000000000b00000000000000000
 00aa00000aaaa00000aa0000000aa00000aaaa00000aa00005585000055550000558500000555500005555000055550005585000055850000558500005585000
 0aaaa0000f8f80000aaaa00000aaaa0000faaa0000aaaa00055550005f8f850005555000005555000055550000555500055550000555500b0555500005555000
